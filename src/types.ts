@@ -1,3 +1,22 @@
+export interface ServiceItem {
+  titulo: string;
+  descricao: string;
+  icone?: string;
+  destaque?: boolean;
+}
+
+export interface ReviewItem {
+  nome: string;
+  comentario: string;
+  cargo?: string;
+  estrelas?: number;
+}
+
+export interface FaqItem {
+  pergunta: string;
+  resposta: string;
+}
+
 export interface SiteConfig {
   id?: string;
   slug: string;
@@ -14,6 +33,14 @@ export interface SiteConfig {
   address?: string;
   phone?: string;
   email?: string;
+  instagram_url?: string;
+  facebook_url?: string;
+  experience_years?: string;
+  satisfied_clients?: string;
+  about_text?: string;
+  services_json?: ServiceItem[];
+  reviews_json?: ReviewItem[];
+  faq_json?: FaqItem[];
 }
 
 export interface DynamicDataProps {
