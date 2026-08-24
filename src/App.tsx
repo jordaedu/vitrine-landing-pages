@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import type { SiteConfig } from './types';
 import { TemplateSelector } from './templates/TemplateSelector';
