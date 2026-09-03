@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import type { DynamicDataProps } from '../types';
-import { MessageCircle, ShoppingBag, Globe, Phone, ExternalLink, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
-
+import { 
+  MessageCircle, 
+  ShoppingBag, 
+  Phone, 
+  ExternalLink, 
+  CheckCircle, 
+  ChevronDown, 
+  ChevronUp 
+} from 'lucide-react';
 export const Template3_BioLinks: React.FC<DynamicDataProps> = ({ config, items = [] }) => {
   const primary = config.primary_color || '#8b5cf6';
   const [showCatalog, setShowCatalog] = useState(false);

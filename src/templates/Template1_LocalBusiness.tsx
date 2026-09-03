@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import type { DynamicDataProps } from '../types';
 import { ProductGrid } from './ProductGrid';
 import { 
-  Phone, MessageCircle, CheckCircle2, ArrowRight, ShieldCheck, 
-  Star, Award, Clock, ChevronDown, MapPin, Mail, Globe, Sparkles, Zap, Check, ShoppingBag
+  Phone, 
+  MessageCircle, 
+  ArrowRight, 
+  Star, 
+  ChevronDown, 
+  Sparkles, 
+  ShoppingBag 
 } from 'lucide-react';
 
 export const Template1_LocalBusiness: React.FC<DynamicDataProps> = ({ config, items = [] }) => {
