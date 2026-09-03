@@ -10,7 +10,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Extrai o slug digitado na barra de endereço (ex: site.com/financeiro -> "financeiro")
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
   const slug = path.split('/')[0] || '';
 
@@ -25,7 +24,7 @@ export default function App() {
         setLoading(true);
         setError(null);
 
-        // 1. Busca as configurações visuais do site pelo slug
+        // 1. Busca configuração do site pelo slug
         const { data: siteData, error: siteErr } = await supabase
           .from('site_config')
           .select('*')
@@ -42,20 +41,28 @@ export default function App() {
 
         setConfig(siteData as SiteConfig);
 
-        // 2. Tenta buscar itens/serviços de tabelas comuns caso existam
-        try {
-          const { data: tableData } = await supabase
-            .from('contas')
-            .select('*')
-            .limit(20);
-          
-          if (tableData && tableData.length > 0) {
-            setItems(tableData);
+        // 2. Busca dinâmica de produtos/cursos no banco
+        const potentialTables = ['produtos', 'cursos', 'pacotes', 'servicos', 'products', 'contas'];
+        let loadedItems: any[] = [];
+
+        for (const table of potentialTables) {
+          try {
+            const { data, error } = await supabase.from(table).select('*').limit(30);
+            if (!error && data && data.length > 0) {
+              loadedItems = data;
+              break;
+            }
+          } catch {
+            // Continua tentando a próxima tabela
           }
-        } catch {
-          // Sem tabela adicional
         }
 
+        // Se não encontrou em tabelas SQL, utiliza os serviços do assistente como fallback
+        if (loadedItems.length === 0 && siteData.services_json && Array.isArray(siteData.services_json)) {
+          loadedItems = siteData.services_json;
+        }
+
+        setItems(loadedItems);
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar dados da página.');
       } finally {
@@ -66,7 +73,6 @@ export default function App() {
     fetchLandingPage();
   }, [slug]);
 
-  // Carregamento
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white space-y-3">
@@ -76,7 +82,6 @@ export default function App() {
     );
   }
 
-  // Raiz sem slug informado (ex: vitrine.vercel.app/)
   if (!slug) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
@@ -85,13 +90,12 @@ export default function App() {
         </div>
         <h1 className="text-2xl font-black mb-2">Portal de Landing Pages</h1>
         <p className="text-xs text-slate-400 max-w-sm">
-          Acesse diretamente pelo endereço exclusivo da sua empresa para visualizar a página de atendimento.
+          Acesse diretamente pelo endereço exclusivo da sua empresa (ex: /onb).
         </p>
       </div>
     );
   }
 
-  // Página não cadastrada ou erro
   if (error || !config) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-3">
@@ -104,6 +108,5 @@ export default function App() {
     );
   }
 
-  // Renderiza o template escolhido
   return <TemplateSelector config={config} items={items} />;
 }
