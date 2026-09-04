@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+import { supabase as centralSupabase } from './supabaseClient';
 import type { SiteConfig } from './types';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { Globe, AlertCircle, Loader2 } from 'lucide-react';
@@ -24,8 +25,8 @@ export default function App() {
         setLoading(true);
         setError(null);
 
-        // 1. Busca configuração do site pelo slug
-        const { data: siteData, error: siteErr } = await supabase
+        // 1. Busca configurações visuais no banco central
+        const { data: siteData, error: siteErr } = await centralSupabase
           .from('site_config')
           .select('*')
           .eq('slug', slug.toLowerCase())
@@ -41,23 +42,40 @@ export default function App() {
 
         setConfig(siteData as SiteConfig);
 
-        // 2. Busca dinâmica de produtos/cursos no banco
-        const potentialTables = ['produtos', 'cursos', 'pacotes', 'servicos', 'products', 'contas'];
+        // 2. Conexão com o banco específico do tenant (se cadastrado em central_tenants)
+        let tenantClient = centralSupabase;
+
+        try {
+          const { data: tenantData } = await centralSupabase
+            .from('central_tenants')
+            .select('*')
+            .eq('slug', slug.toLowerCase())
+            .maybeSingle();
+
+          if (tenantData?.supabase_url && tenantData?.supabase_anon_key) {
+            tenantClient = createClient(tenantData.supabase_url, tenantData.supabase_anon_key);
+          }
+        } catch {
+          // Fallback para centralSupabase
+        }
+
+        // 3. Busca os produtos/cursos prioritariamente no banco do tenant
+        const potentialTables = ['cursos', 'pacotes', 'produtos', 'contas', 'products'];
         let loadedItems: any[] = [];
 
         for (const table of potentialTables) {
           try {
-            const { data, error } = await supabase.from(table).select('*').limit(30);
+            const { data, error } = await tenantClient.from(table).select('*').limit(30);
             if (!error && data && data.length > 0) {
               loadedItems = data;
               break;
             }
           } catch {
-            // Continua tentando a próxima tabela
+            // Tenta a próxima tabela
           }
         }
 
-        // Se não encontrou em tabelas SQL, utiliza os serviços do assistente como fallback
+        // Fallback: se não achar em tabelas físicas, usa os serviços salvos pelo assistente
         if (loadedItems.length === 0 && siteData.services_json && Array.isArray(siteData.services_json)) {
           loadedItems = siteData.services_json;
         }
