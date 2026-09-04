@@ -7,7 +7,16 @@ import { Template4_LeadCapture } from './Template4_LeadCapture';
 import { Template5_FinancePortal } from './Template5_FinancePortal';
 
 export const TemplateSelector: React.FC<DynamicDataProps> = (props) => {
-  const templateId = props.config.template_id || '1';
+  // Converte explicitamente para string e remove espaços em branco
+  const rawId = props.config?.template_id;
+  const templateId = String(rawId ?? '1').trim();
+
+  // Log no Console (F12) para você conferir exatamente o valor recebido da API
+  console.log('[TemplateSelector] template_id recebido do Supabase:', {
+    raw: rawId,
+    sanitized: templateId,
+    slug: props.config?.slug
+  });
 
   switch (templateId) {
     case '1':
@@ -21,6 +30,7 @@ export const TemplateSelector: React.FC<DynamicDataProps> = (props) => {
     case '5':
       return <Template5_FinancePortal {...props} />;
     default:
+      console.warn(`[TemplateSelector] ID "${templateId}" desconhecido. Renderizando fallback (Template 1).`);
       return <Template1_LocalBusiness {...props} />;
   }
 };
