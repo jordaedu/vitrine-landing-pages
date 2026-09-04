@@ -5,6 +5,14 @@ import type { SiteConfig } from './types';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { Globe, AlertCircle, Loader2 } from 'lucide-react';
 
+// Mapeamento direto de credenciais por slug caso a tabela central_tenants não esteja disponível
+const TENANT_CREDENTIALS_MAP: Record<string, { url: string; anonKey: string }> = {
+  onb: {
+    url: 'https://cfojhfsfpjennfaijuys.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmb2poZnNmcGplbm5mYWlqdXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzODE2NzIsImV4cCI6MjA3NTk1NzY3Mn0.Y-nI_gn-QacT8BECYoMpZkCA6DKQQhG1ujKiTW2pwv4'
+  }
+};
+
 export default function App() {
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -42,46 +50,56 @@ export default function App() {
 
         setConfig(siteData as SiteConfig);
 
-        // 2. Conexão com o banco específico do tenant (se cadastrado em central_tenants)
+        // 2. Conexão com o banco do tenant
         let tenantClient = centralSupabase;
+        const normalizedSlug = slug.toLowerCase();
 
-        try {
-          const { data: tenantData } = await centralSupabase
-            .from('central_tenants')
-            .select('*')
-            .eq('slug', slug.toLowerCase())
-            .maybeSingle();
+        if (TENANT_CREDENTIALS_MAP[normalizedSlug]) {
+          tenantClient = createClient(
+            TENANT_CREDENTIALS_MAP[normalizedSlug].url,
+            TENANT_CREDENTIALS_MAP[normalizedSlug].anonKey
+          );
+        } else {
+          try {
+            const { data: tenantData } = await centralSupabase
+              .from('central_tenants')
+              .select('*')
+              .eq('slug', normalizedSlug)
+              .maybeSingle();
 
-          if (tenantData?.supabase_url && tenantData?.supabase_anon_key) {
-            tenantClient = createClient(tenantData.supabase_url, tenantData.supabase_anon_key);
+            if (tenantData?.supabase_url && tenantData?.supabase_anon_key) {
+              tenantClient = createClient(tenantData.supabase_url, tenantData.supabase_anon_key);
+            }
+          } catch (e) {
+            console.warn('[Vitrine] Falha ao consultar central_tenants, usando central como fallback.');
           }
-        } catch {
-          // Fallback para centralSupabase
         }
 
-        // 3. Busca os produtos/cursos prioritariamente no banco do tenant
+        // 3. Busca produtos/cursos na base correta do tenant
         const potentialTables = ['cursos', 'pacotes', 'produtos', 'contas', 'products'];
         let loadedItems: any[] = [];
 
         for (const table of potentialTables) {
           try {
-            const { data, error } = await tenantClient.from(table).select('*').limit(30);
-            if (!error && data && data.length > 0) {
+            const { data, error: tableErr } = await tenantClient.from(table).select('*').limit(40);
+            if (!tableErr && data && data.length > 0) {
+              console.log(`[Vitrine] ${data.length} itens carregados com sucesso da tabela "${table}".`);
               loadedItems = data;
               break;
             }
           } catch {
-            // Tenta a próxima tabela
+            // Continua para a próxima tentativa
           }
         }
 
-        // Fallback: se não achar em tabelas físicas, usa os serviços salvos pelo assistente
+        // Fallback: se as tabelas estiverem vazias, usa o services_json cadastrado
         if (loadedItems.length === 0 && siteData.services_json && Array.isArray(siteData.services_json)) {
           loadedItems = siteData.services_json;
         }
 
         setItems(loadedItems);
       } catch (err: any) {
+        console.error('[Vitrine] Erro geral:', err);
         setError(err.message || 'Erro ao carregar dados da página.');
       } finally {
         setLoading(false);
